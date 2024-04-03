@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 from pysynphot.observation import Observation
 from pysynphot.spectrum import ArraySourceSpectrum, ArraySpectralElement
 
-import DataStructures
+from telfit import DataStructures
 
 
 cimport numpy as np

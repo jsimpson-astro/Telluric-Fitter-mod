@@ -31,7 +31,7 @@ from collections import defaultdict
 import struct
 import warnings
 import time
-import FittingUtilities
+from telfit import FittingUtilities
 import copy
 
 import scipy.interpolate
@@ -40,8 +40,8 @@ import logging
 import numpy as np
 from astropy import units
 
-import DataStructures
-import MakeTape5
+from telfit import DataStructures
+from telfit import MakeTape5
 
 
 DEFAULT_TELLURICMODELING = '{}/.TelFit/'.format(os.environ['HOME'])
