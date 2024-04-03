@@ -57,7 +57,7 @@ import logging
 import numpy as np
 from numpy.polynomial import chebyshev
 from scipy.interpolate import UnivariateSpline
-from scipy.optimize import leastsq, fminbound, least_squares
+from scipy.optimize import leastsq, fminbound
 from scipy.linalg import svd, diagsvd
 from scipy import mat
 import matplotlib.pyplot as plt
@@ -75,7 +75,7 @@ class TelluricFitter:
         :param debug: Flag to print a bunch of messages to screen for debugging purposes
         :param debug_level: An integer from 1-5 that controls how much gets printed. 1 is the least and 5 is the most.
         :param print_lblrtm_output: Show printouts from fortran (lblrtm) code
-        
+
         :return: An instance of TelluricFitter.
         """
         # Set up parameters
@@ -116,12 +116,8 @@ class TelluricFitter:
         self.source_args = [61, 4]
         self.source_kwargs = dict(lowreject=2, highreject=3, numiters=5)
 
-        self.cctol = 0.1
-
         #Just open and close chisq_summary, to clear anything already there
-        # modifying for multiprocessing
-        #outfile = open("chisq_summary.dat", "w")
-        outfile = open("chisq_summary.dat", "a")
+        outfile = open("chisq_summary.dat", "w")
         outfile.close()
 
         # Set up the logger
@@ -525,17 +521,10 @@ class TelluricFitter:
         optdict = {"eps": 5}
         bfgs_optdict = {'disp': 2, 'pgtol': 1e-8, 'epsilon': 1, 'approx_grad': True}
         slsqp_optdict = {'disp': 2, 'eps': 1e-1}
-        
-        # will try substituting with least_squares and making output similar to expected from leastsq
-        # (apparently it's much faster)
-        #output = leastsq(self.FitErrorFunction, fitpars, full_output=True)
-        output = least_squares(self.FitErrorFunction, fitpars)
+        output = leastsq(self.FitErrorFunction, fitpars, full_output=True, epsfcn=1e-1)
 
-        #fitpars = output[0]
-        fitpars = output.x
-
-        #logging.debug("Fit Message: {}".format(output[3]))
-        logging.debug("Fit Message: {}".format(output.message))
+        fitpars = output[0]
+        logging.debug("Fit Message: {}".format(output[3]))
 
         #Save the best-fit values
         idx = 0
@@ -639,7 +628,7 @@ class TelluricFitter:
         :param model: A DataStructures.xypoint instance containing an un-broadened telluric model.
                       If given, it uses this instead of making one.
         :param air_wave: Set True of False to overwrite the air_wave saved under self. Default is None, which will use the self.air_wave attribute
-        
+
         :return:  The best-fit telluric model, as a DataStructures.xypoint instance where the x-axis is
                  sampled the same as the data (so you should be able to directly divide the two). If
                  separate_source = True, this method also returns the estimate for the source spectrum *before*
@@ -662,7 +651,7 @@ class TelluricFitter:
                     self.const_pars[i] = self.bounds[i][0] - 1.0 + \
                                          np.sqrt((pars[fit_idx]*self.normalization[i])**2 + 1.0)
                 fit_idx += 1
-        #self.DisplayVariables(fitonly=True)
+        self.DisplayVariables(fitonly=True)
 
         #Extract parameters from pars and const_pars. They will have variable
         #  names set from self.parnames
@@ -676,7 +665,7 @@ class TelluricFitter:
         wavenum_end = 1e7 / wavestart
         lat = self.observatory["latitude"]
         alt = self.observatory["altitude"]
-        
+
         # check if user overwrite MakeModel's output wavelength space
         if air_wave is not None:
             air_wave_overwrite = air_wave
@@ -703,7 +692,7 @@ class TelluricFitter:
             #  to go through MakeModel directly though...
             if data == None or nofit:
                 if broaden:
-                    model = FittingUtilities.ReduceResolution(model, resolution)
+                    model = FittingUtilities.ReduceResolution2(model, resolution)
 
                 # Give units to the output model
                 model.x *= u.nm.to(self.xunits)
@@ -712,23 +701,21 @@ class TelluricFitter:
         #Make a copy of the model before broadening it
         model_original = model.copy()
 
-        # removing this garbage because it is very slow (apparently)
         #Reduce to initial guess resolution
-        # if (resolution - 10 < self.resolution_bounds[0] or resolution + 10 > self.resolution_bounds[1]):
-        #     resolution = np.mean(self.resolution_bounds)
-        # model = FittingUtilities.ReduceResolution(model, resolution)
-        model = FittingUtilities.ReduceResolution2(model, resolution) # altered to this
+        if (resolution - 10 < self.resolution_bounds[0] or resolution + 10 > self.resolution_bounds[1]):
+            resolution = np.mean(self.resolution_bounds)
+        model = FittingUtilities.ReduceResolution2(model, resolution)
         model = FittingUtilities.RebinData(model, data.x)
 
         #Shift the data (or model) by a constant offset. This gets the wavelength calibration close
-        shift = FittingUtilities.CCImprove(data, model, tol=self.cctol)
+        shift = FittingUtilities.CCImprove(data, model, tol=0.1)
         logging.debug("Shifting model by {:.5g} pixels".format((shift)))
         if self.adjust_wave == "data" and shift != 0:
             data.x += shift
         elif self.adjust_wave == "model" and shift != 0:
             model_original.x -= shift
             # In this case, we need to adjust the resolution again
-            model = FittingUtilities.ReduceResolution(model_original.copy(), resolution)
+            model = FittingUtilities.ReduceResolution2(model_original.copy(), resolution)
             model = FittingUtilities.RebinData(model, data.x)
         elif shift != 0:
             sys.exit("Error! adjust_wave parameter set to invalid value: %s" % self.adjust_wave)
@@ -791,19 +778,19 @@ class TelluricFitter:
             logging.debug("  and before the resolution fit to Debug_Output2.log")
             np.savetxt("Debug_Output2.log", np.transpose((data.x, data.y, data.cont, model.x, model.y)))
 
-        # removing this also for resolution fitting
-        # #Fit instrumental resolution
-        # done = False
-        # while not done:
-        #     done = True
-        #     if 'gauss' in self.resolution_fit_mode.lower() or min(model.y) > 0.95:
-        #         model, resolution = self.FitResolution(data.copy(), model_original.copy(), resolution)
-        #     elif "svd" in self.resolution_fit_mode.lower():
-        #         model, self.broadstuff = self.Broaden2(data.copy(), model_original.copy(), full_output=True)
-        #     else:
-        #         done = False
-        #         print("Resolution fit mode set to an invalid value: %s" % self.resolution_fit_mode)
-        #         self.resolution_fit_mode = raw_input("Enter a valid mode (SVD or guass): ")
+
+        #Fit instrumental resolution
+        done = False
+        while not done:
+            done = True
+            if 'gauss' in self.resolution_fit_mode.lower() or min(model.y) > 0.95:
+                model, resolution = self.FitResolution(data.copy(), model_original.copy(), resolution)
+            elif "svd" in self.resolution_fit_mode.lower():
+                model, self.broadstuff = self.Broaden2(data.copy(), model_original.copy(), full_output=True)
+            else:
+                done = False
+                print("Resolution fit mode set to an invalid value: %s" % self.resolution_fit_mode)
+                self.resolution_fit_mode = raw_input("Enter a valid mode (SVD or guass): ")
 
         self.data = data
         self.first_iteration = False
@@ -1129,7 +1116,7 @@ class TelluricFitter:
 
 
         logging.info("Optimal resolution found at R = {}".format(float(resolution)))
-        newmodel = FittingUtilities.ReduceResolution(newmodel, float(resolution))
+        newmodel = FittingUtilities.ReduceResolution2(newmodel, float(resolution))
         return FittingUtilities.RebinData(newmodel, data.x), float(resolution)
 
 
@@ -1147,7 +1134,7 @@ class TelluricFitter:
             logging.debug(" to Debug_ResFit.log and Debug_ResFit2.log")
             np.savetxt("Debug_ResFit.log", np.transpose((data.x, data.y, data.cont)))
             np.savetxt("Debug_Resfit2.log", np.transpose((model.x, model.y)))
-        newmodel = FittingUtilities.ReduceResolution(model, resolution, extend=False)
+        newmodel = FittingUtilities.ReduceResolution2(model, resolution, extend=False)
         newmodel = FittingUtilities.RebinData(newmodel, data.x, synphot=False)
 
         #Find the regions to use (ignoring the parts that were defined as bad)
