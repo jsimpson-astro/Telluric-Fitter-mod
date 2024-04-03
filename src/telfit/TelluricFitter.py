@@ -118,11 +118,6 @@ class TelluricFitter:
 
         self.cctol = 0.1
 
-        #Just open and close chisq_summary, to clear anything already there
-        # modifying for multiprocessing
-        #outfile = open("chisq_summary.dat", "w")
-        # outfile = open("chisq_summary.dat", "a")
-        # outfile.close()
         # Modifying this structure for file output to actually be useful
         self.outfile = outfile
 
@@ -516,14 +511,13 @@ class TelluricFitter:
         #Set up the fitting logfile and logging arrays
         self.parvals = [[] for i in range(len(self.parnames))]
         self.chisq_vals = []
-        outfile = open("chisq_summary.dat", "a")
-        outfile.write("\n\n\n\n")
-        for i in range(len(self.parnames)):
-            if self.fitting[i]:
-                outfile.write("%s\t" % self.parnames[i])
-        outfile.write("X^2\n")
-        outfile.close()
 
+        # modified to context manager, and simpler
+        with open(self.outfile, 'a') as f:
+            fit_parnames = [parname for fitting, parname in zip(self.fitting, self.parnames) if fitting]
+            extra_parnames = ['shift', 'X^2']
+            fit_parnames = ['iter'] + fit_parnames + extra_parnames
+            f.write('\t'.join(fit_parnames) + '\n') 
 
         #Perform the fit
         self.first_iteration = True
@@ -536,7 +530,8 @@ class TelluricFitter:
         
         # will try substituting with least_squares and making output similar to expected from leastsq
         # (apparently it's much faster)
-        #output = leastsq(self.FitErrorFunction, fitpars, full_output=True)
+        global fit_iters
+        fit_iters = 1
         output = least_squares(self.FitErrorFunction, fitpars)
 
         #fitpars = output[0]
@@ -590,7 +585,7 @@ class TelluricFitter:
             model, resolution = self.GenerateModel(fitpars, return_resolution=True)
         else:
             model = self.GenerateModel(fitpars)
-        outfile = open("chisq_summary.dat", 'a')
+
         #weights = 1.0 / self.data.err
         weights = np.ones(self.data.size())
         weights /= weights.sum()
@@ -609,18 +604,20 @@ class TelluricFitter:
         return_array = (self.data.y - self.data.cont * model.y)[good] * weights[good]
         #Evaluate bound conditions and output the parameter value to the logfile.
         fit_idx = 0
-        for i in range(len(self.bounds)):
-            if self.fitting[i]:
-                #if len(self.bounds[i]) == 2:
-                #    return_array += FittingUtilities.bound(self.bounds[i], fitpars[fit_idx])
-                outfile.write("%.12g\t" % self.const_pars[i])
-                self.parvals[i].append(self.const_pars[i])
-                fit_idx += 1
-        outfile.write("%g\n" % (np.sum(return_array**2) / float(weights.size)))
 
-        self.chisq_vals.append(np.sum(return_array**2) / float(weights.size))
-        logging.info("X^2 = {}".format(np.sum(return_array**2) / float(weights.size)))
-        outfile.close()
+        chisq_val = np.sum(return_array**2) / float(weights.size)
+
+        # modified to correct context manager
+        with open(self.outfile, 'a') as f:
+            fit_parvals = [f"{par:.12g}" for fitting, par in zip(self.fitting, self.const_pars) if fitting]
+            extra_pars = [f"{self.shift:.12g}", f"{chisq_val:.12g}"]
+            fit_parnames = [f"{fit_iters}"] + fit_parnames + extra_parnames
+            f.write('\t'.join(fit_parnames) + '\n') 
+
+        self.chisq_vals.append(chisq_val)
+        logging.info("X^2 = {}".format(chisq_val))
+
+        fit_iters = fit_iters + 1
 
         return return_array
 
