@@ -68,7 +68,7 @@ from telfit import DataStructures
 
 
 class TelluricFitter:
-    def __init__(self, debug=False, debug_level=2, print_lblrtm_output=True):
+    def __init__(self, debug=False, debug_level=2, print_lblrtm_output=True, outfile='telfit_log.dat'):
         """
         Initialize the TelluricFitter class.
 
@@ -121,8 +121,10 @@ class TelluricFitter:
         #Just open and close chisq_summary, to clear anything already there
         # modifying for multiprocessing
         #outfile = open("chisq_summary.dat", "w")
-        outfile = open("chisq_summary.dat", "a")
-        outfile.close()
+        # outfile = open("chisq_summary.dat", "a")
+        # outfile.close()
+        # Modifying this structure for file output to actually be useful
+        self.outfile = outfile
 
         # Set up the logger
         if debug:
@@ -131,7 +133,23 @@ class TelluricFitter:
 
 
     # ## -----------------------------------------------
+    def _dispvars(self, fitonly=False):
+        """
+        Base of DisplayVariables, to return as a string
+        """
+        lines = []
+        lines.append("%.15s\tValue\t\tFitting?\tBounds" % ("Parameter".ljust(15)))
+        lines.append("-------------\t-----\t\t-----\t\t-----")
+        for i in range(len(self.parnames)):
+            if (fitonly and self.fitting[i]) or not fitonly:
+                if len(self.bounds[i]) == 2:
+                    lines.append("%.15s\t%.5E\t%s\t\t%g - %g" % (
+                    self.parnames[i].ljust(15), self.const_pars[i], self.fitting[i], self.bounds[i][0],
+                    self.bounds[i][1]))
+                else:
+                    lines.append("%.15s\t%.5g\t\t%s" % (self.parnames[i].ljust(15), self.const_pars[i], self.fitting[i]))
 
+        return '\n'.join(lines)
 
     def DisplayVariables(self, fitonly=False):
         """
@@ -142,20 +160,10 @@ class TelluricFitter:
 
         :return: None
         """
-        print("%.15s\tValue\t\tFitting?\tBounds" % ("Parameter".ljust(15)))
-        print("-------------\t-----\t\t-----\t\t-----")
-        for i in range(len(self.parnames)):
-            if (fitonly and self.fitting[i]) or not fitonly:
-                if len(self.bounds[i]) == 2:
-                    print("%.15s\t%.5E\t%s\t\t%g - %g" % (
-                    self.parnames[i].ljust(15), self.const_pars[i], self.fitting[i], self.bounds[i][0],
-                    self.bounds[i][1]))
-                else:
-                    print("%.15s\t%.5g\t\t%s" % (self.parnames[i].ljust(15), self.const_pars[i], self.fitting[i]))
+        print(self._dispvars(fitonly))
+        
 
-
-
-                ### -----------------------------------------------
+    ### -----------------------------------------------
 
 
     def FitVariable(self, vardict):
