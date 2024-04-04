@@ -515,6 +515,7 @@ class TelluricFitter:
         self.chisq_vals = []
 
         # modified to context manager, and simpler
+        print(f"Output file for fits: {self.outfile}")
         with open(self.outfile, 'a') as f:
             fit_parnames = [parname for fitting, parname in zip(self.fitting, self.parnames) if fitting]
             extra_parnames = ['shift', 'X^2']
