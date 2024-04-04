@@ -460,6 +460,8 @@ class TelluricFitter:
         self.return_resolution = return_resolution
         self.air_wave = air_wave
 
+        self.fit_iters = 0
+
         #Check if the user gave data to fit
         if data != None:
             self.ImportData(data)
@@ -530,8 +532,7 @@ class TelluricFitter:
         
         # will try substituting with least_squares and making output similar to expected from leastsq
         # (apparently it's much faster)
-        global fit_iters
-        fit_iters = 1
+        self.fit_iters = 1
         output = least_squares(self.FitErrorFunction, fitpars)
 
         #fitpars = output[0]
@@ -610,14 +611,14 @@ class TelluricFitter:
         # modified to correct context manager
         with open(self.outfile, 'a') as f:
             fit_parvals = [f"{par:.12g}" for fitting, par in zip(self.fitting, self.const_pars) if fitting]
-            extra_pars = [f"{self.shift:.12g}", f"{chisq_val:.12g}"]
-            fit_parnames = [f"{fit_iters}"] + fit_parnames + extra_parnames
-            f.write('\t'.join(fit_parnames) + '\n') 
+            extra_parvals = [f"{self.shift:.12g}", f"{chisq_val:.12g}"]
+            fit_parvals = [f"{self.fit_iters}"] + fit_parvals + extra_parvals
+            f.write('\t'.join(fit_parvals) + '\n') 
 
         self.chisq_vals.append(chisq_val)
         logging.info("X^2 = {}".format(chisq_val))
 
-        fit_iters = fit_iters + 1
+        self.fit_iters = self.fit_iters + 1
 
         return return_array
 

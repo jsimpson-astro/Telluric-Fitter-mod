@@ -347,6 +347,8 @@ def rebin_spec(wave, specin, wavnew):
   This takes in an x and y array, as well as the desired new x-array,
     and outputs the re-binned y array.
   """
+  # crop negatives here to avoid constantly printing a 'warning' from pysynphot
+  specin[specin < 0] = 0
   spec = ArraySourceSpectrum(wave=wave, flux=specin)
   f = np.ones(len(wave))
   filt = ArraySpectralElement(wave, f)
