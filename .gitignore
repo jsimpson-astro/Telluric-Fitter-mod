@@ -1,7 +1,7 @@
 *.pyc
 *.swp
-src/FittingUtilities.c
-src/FittingUtilities.so
+src/telfit/FittingUtilities.c
+src/telfit/FittingUtilities.so
 build*
 *.tar.gz
 dist*
