@@ -45,7 +45,8 @@ from telfit import MakeTape5
 
 
 DEFAULT_TELLURICMODELING = '{}/.TelFit/'.format(os.environ['HOME'])
-
+with open(os.path.abspath(os.path.join(os.path.dirname(__file__), "TelfitDir.info")), 'r') as f:
+    DEFAULT_TELLURICMODELING = f.readlines()[0]
 
 
 

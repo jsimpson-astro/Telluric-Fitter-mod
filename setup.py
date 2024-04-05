@@ -62,14 +62,17 @@ num_rundirs = 2 * os.cpu_count() # two times the number of your cpu threads
 # Telluric modeling directory. This code will put all the data files in this directory.
 # NOTE: If you change this, you MUST make an environment variable call TELLURICMODELING that points
 #   to the new location!
-TELLURICMODELING = '{}/.TelFit/'.format(os.environ['HOME'])
+
+TELLURICMODELING = os.path.join(os.environ['TELLURICMODELING'], '.Telfit') if 'TELLURICMODELING' in os.environ else '{}/.TelFit/'.format(os.environ['HOME'])
+#TELLURICMODELING = '{}/.TelFit/'.format(os.environ['HOME'])
+with open('src/telfit/TelfitDir.info', 'w') as f:
+	f.write(TELLURICMODELING)
 
 # URL where the data is stored
 DATA_URL = 'https://zenodo.org/record/1202479/files/'
 
 if not TELLURICMODELING.endswith('/'):
     TELLURICMODELING += '/'
-
 
 def ensure_dir(d):
     """
@@ -319,7 +322,7 @@ for d in glob.glob(os.path.join('examples', '*')):
     files = [f for f in glob.glob(os.path.join(d, '*'))]
     example_files.append((dir, files))
 
-data_files = [('', ['data/MIPAS_atmosphere_profile',
+data_files = [(TELLURICMODELING, ['data/MIPAS_atmosphere_profile',
                         'data/ParameterFile',
                         'data/TAPE5',
                         'data/runlblrtm_v3.sh'])]
@@ -350,5 +353,7 @@ setup(name='TelFit',
       data_files=data_files,
       install_requires=requires,
       setup_requires=['cython', 'requests', 'numpy>=1.6'],
-      package_dir={'': 'src'}
+      package_dir={'': 'src'},
+      package_data={'': ['src/telfit/TelfitDir.info']},
+      include_package_data=True
 )
