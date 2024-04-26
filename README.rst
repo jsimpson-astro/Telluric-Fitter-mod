@@ -22,13 +22,22 @@ As of version `v1.4.0` TelFit now only runs on Python 3.  Python 2 support has b
   - **cython**
   - **requests**
 
-The bolded entries are required *before* installation, so make sure you get them from pip, apt-get/yum, or conda (depending on your OS and python distribution). The setup script will attempt to install the rest if you don't have them, but I suggest doing it yourself just to make sure nothing goes wrong. Once you have the dependencies, simply type
+The bolded entries are required *before* installation, so make sure you get them from pip, apt-get/yum, or conda (depending on your OS and python distribution). The setup script will attempt to install the rest if you don't have them, but I suggest doing it yourself just to make sure nothing goes wrong. Once you have the dependencies, simply type: 
 
 .. code:: bash
 
     pip install TelFit
 
 to install TelFit. It may take a while, as it needs to build the LBLRTM code and some of its standard input files.
+
+By default, TelFit will build the LBLRTM code **in your home directory**,  where models will be computed. This can require significant usage and can be very slow, depending on where your home directory is stored. As such, in this fork, a different location can be specified by setting the TELLURICMODELING variable in your environment. For example, cloning the repo and running:
+
+.. code:: bash
+    
+    export TELLURICMODELING="/usr/lib/"
+    pip install .
+    
+will install the necessary files to the directory /usr/lib/.Telfit 
 
 Running TelFit
 --------------
